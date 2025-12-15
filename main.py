@@ -80,9 +80,13 @@ def run_sql_many(sql: str, data: list[tuple]):
     conn.close()
 
 
-# mysql://root:bCcgjUHUUMWBxhENRriWfeYjUYswzcTi@yamabiko.proxy.rlwy.net:57345/railway
-DB = dict(user="root", password="bCcgjUHUUMWBxhENRriWfeYjUYswzcTi", host="yamabiko.proxy.rlwy.net", port=57345, database="adt_project")
-
+DB = {
+    "host": st.secrets["mysql"]["host"],
+    "port": int(st.secrets["mysql"]["port"]),
+    "database": st.secrets["mysql"]["database"],
+    "user": st.secrets["mysql"]["user"],
+    "password": st.secrets["mysql"]["password"],
+}
 def get_conn():
     return mysql.connector.connect(**DB)
 
