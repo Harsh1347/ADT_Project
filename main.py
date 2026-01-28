@@ -42,12 +42,10 @@ def coerce_input(data_type: str, value):
             return value
         return dt.date.fromisoformat(str(value))
     if dtp in ("datetime", "timestamp"):
-        # Streamlit returns datetime for st.date_input+time_input combos if you build it
+        
         if isinstance(value, dt.datetime):
             return value
         return dt.datetime.fromisoformat(str(value))
-
-    # default treat as string
     return str(value)
 
 def render_input(col_name: str, data_type: str, is_nullable: str):
@@ -64,10 +62,10 @@ def render_input(col_name: str, data_type: str, is_nullable: str):
         return st.date_input(col_name, value=None)
 
     if dtp in ("datetime", "timestamp"):
-        # simple text input is easiest unless you want separate date+time
+        
         return st.text_input(col_name, value="")
 
-    # varchar/text/etc
+    
     default = "" if required else ""
     return st.text_input(col_name, value=default)
 
@@ -80,13 +78,8 @@ def run_sql_many(sql: str, data: list[tuple]):
     conn.close()
 
 
-DB = {
-    "host": st.secrets["mysql"]["host"],
-    "port": int(st.secrets["mysql"]["port"]),
-    "database": st.secrets["mysql"]["database"],
-    "user": st.secrets["mysql"]["user"],
-    "password": st.secrets["mysql"]["password"],
-}
+DB = dict(user="root", password="bCcgjUHUUMWBxhENRriWfeYjUYswzcTi", host="yamabiko.proxy.rlwy.net", port=57345, database="adt_project")
+
 def get_conn():
     return mysql.connector.connect(**DB)
 
@@ -108,19 +101,19 @@ def run_sql(sql, params=None):
 def safe_rerun():
     """Trigger a Streamlit rerun in a way that works across Streamlit versions."""
     try:
-        # older/newer Streamlit versions may provide different helpers
+        
         st.experimental_rerun()
         return
     except Exception:
         pass
 
     try:
-        # fallback to internal RerunException
+        
         from streamlit.runtime.scriptrunner.script_runner import RerunException
 
         raise RerunException()
     except Exception:
-        # final fallback: ask user to refresh
+        
         st.warning("Please refresh the app to continue.")
 
 st.set_page_config(page_title="SmartPark IU", layout="wide")
@@ -183,13 +176,13 @@ with st.sidebar:
 
 page = st.sidebar.radio("Navigate", ["Park Now", "Admin"])
 
-# simple session state for admin authentication
+
 if "admin_authenticated" not in st.session_state:
     st.session_state.admin_authenticated = False
 if page == "Park Now":
     st.title("Where should I park right now?")
 
-    # --- load reference tables ---
+    
     buildings = fetch_df("SELECT building_id, name, latitude, longitude FROM buildings ORDER BY name")
     permits = fetch_df("SELECT permit_id, name FROM permits ORDER BY name")
 
@@ -197,7 +190,7 @@ if page == "Park Now":
         st.error("No buildings found in database.")
         st.stop()
 
-    # --- session state (so map reruns don't wipe results) ---
+    
     if "recs" not in st.session_state:
         st.session_state.recs = None
     if "building_center" not in st.session_state:
@@ -205,7 +198,7 @@ if page == "Park Now":
     if "submitted_once" not in st.session_state:
         st.session_state.submitted_once = False
 
-    # --- UI in a form to prevent constant reruns ---
+    
     with st.form("park_form"):
         b_choice = st.selectbox("Destination Building", buildings["name"].tolist())
 
@@ -217,17 +210,17 @@ if page == "Park Now":
 
         submitted = st.form_submit_button("Find parking")
 
-        # # Small scrollable preview of the `lots` table under the first block
-        # try:
-        #     lots_preview = fetch_df("SELECT lot_id, title, latitude, longitude FROM lots ORDER BY title LIMIT 200")
-        # except Exception:
-        #     lots_preview = pd.DataFrame()
+        
+        
+        
+        
+        
 
-        # st.caption("Lots preview ")
-        # st.dataframe(lots_preview, height=200)
+        
+        
     b_row = buildings[buildings["name"] == b_choice].iloc[0]
 
-    # --- SQL: Any permit (no filtering) ---
+    
     REC_SQL_ANY = """
     SELECT
       l.lot_id,
@@ -255,7 +248,7 @@ if page == "Park Now":
     LIMIT %(k)s;
     """
 
-    # --- SQL: specific permit filter, but still show all types via LEFT JOIN ---
+    
     REC_SQL_PERMIT = """
     SELECT
       l.lot_id,
@@ -315,7 +308,7 @@ if page == "Park Now":
         st.session_state.building_center = (float(b_row["latitude"]), float(b_row["longitude"]), b_choice)
         st.session_state.submitted_once = True
 
-    # --- Render results OUTSIDE submit (so map reruns don't wipe UI) ---
+    
     if st.session_state.submitted_once:
         recs = st.session_state.recs
 
@@ -342,7 +335,7 @@ if page == "Park Now":
             ).add_to(m)
 
 
-            # ensure lat/lng are valid
+            
             recs2 = recs.dropna(subset=["lot_lat", "lot_lng"]).copy()
             recs2["lot_lat"] = recs2["lot_lat"].astype(float)
             recs2["lot_lng"] = recs2["lot_lng"].astype(float)
@@ -369,11 +362,11 @@ if page == "Park Now":
                 ).add_to(m)
 
 
-            # IMPORTANT: prevent interaction return objects from causing flicker issues
+            
             st_folium(m, width=1100, height=600, returned_objects=[], key="park_map")
 
 elif page == "Admin":
-    # If not authenticated, show a dummy login form (blank-check only)
+    
     if not st.session_state.admin_authenticated:
         st.title("Admin Login")
         with st.form("admin_login_form"):
@@ -388,11 +381,11 @@ elif page == "Admin":
                 st.session_state.admin_authenticated = True
                 st.success("Logged in successfully.")
 
-        # If still not authenticated (form not submitted or blank inputs), halt here
+        
         if not st.session_state.admin_authenticated:
             st.stop()
 
-    # Authenticated — show admin portal
+    
     st.title("Admin")
     if st.button("Logout"):
         st.session_state.admin_authenticated = False
@@ -457,13 +450,13 @@ elif page == "Admin":
 
         st.caption(f"Primary key columns: {pk_cols if pk_cols else 'None detected'}")
 
-        # Pull a small preview to help admin choose rows for update/delete
+        
         preview = fetch_df(f"SELECT * FROM {table} LIMIT 200")
         whole_data = fetch_df(f"SELECT * FROM {table} LIMIT 10000") 
         st.write("Preview (first 200 rows):")
         st.dataframe(preview, use_container_width=True, height=250)
 
-        # For Update/Delete, we need to pick a row (by PK if possible)
+        
         selected_pk = {}
         if action in ("Update", "Delete"):
             if not pk_cols:
@@ -471,14 +464,14 @@ elif page == "Admin":
             else:
                 st.write("Select row to modify:")
                 for pk in pk_cols:
-                    # pick from existing values in preview if present
+                    
                     if pk in whole_data.columns and not whole_data.empty:
                         options = whole_data[pk].dropna().unique().tolist()
                         selected_pk[pk] = st.selectbox(f"PK: {pk}", options)
                     else:
                         selected_pk[pk] = st.text_input(f"PK: {pk}")
 
-        # Insert / Update form
+        
         with st.form(f"{table}_{action}_form", clear_on_submit=False):
             inputs = {}
 
@@ -486,7 +479,7 @@ elif page == "Admin":
                 st.write("Enter values to insert:")
                 for _, row in schema.iterrows():
                     col = row["COLUMN_NAME"]
-                    # Skip auto-increment columns on insert
+                    
                     if str(row["EXTRA"]).lower().find("auto_increment") >= 0:
                         continue
                     inputs[col] = render_input(col, row["DATA_TYPE"], row["IS_NULLABLE"])
@@ -496,8 +489,8 @@ elif page == "Admin":
                 for _, row in schema.iterrows():
                     col = row["COLUMN_NAME"]
                     if col in pk_cols:
-                        continue  # don't update PK
-                    # allow user to leave blank = no change
+                        continue  
+                    
                     inputs[col] = st.text_input(f"{col} (new value or blank)", value="")
 
             elif action == "Delete":
@@ -506,7 +499,7 @@ elif page == "Admin":
 
             submitted = st.form_submit_button(f"{action} row")
 
-        # Execute
+        
         if submitted:
             try:
                 if action == "Insert":
@@ -535,7 +528,7 @@ elif page == "Admin":
                         values = []
 
                         for col, raw in inputs.items():
-                            # blank = do not update
+                            
                             if raw is None:
                                 continue
                             if isinstance(raw, str) and raw.strip() == "":
